@@ -47,4 +47,8 @@ export class UserService {
         }
         
     }
+
+    getUserById(userId:string){
+        return this.users.find(user => user.id === userId);
+    }
 }

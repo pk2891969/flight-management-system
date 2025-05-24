@@ -7,7 +7,7 @@ import { SignInDto } from './dto/signin.dto';
 export class UserController {
 
     constructor(
-        private userService: UserService
+        private readonly userService: UserService
     ){}
 
     @Post('sign-up')

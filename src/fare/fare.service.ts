@@ -1,8 +1,9 @@
-import { BadRequestException, forwardRef, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { SetFareDto } from './dto/set-fare.dto';
 import { FlightService } from 'src/flight/flight.service';
 import { UpdateFareDto } from './dto/update-fare.dto';
 import { Fare } from 'src/common/interfaces';
+import { SeatClassEnum } from 'src/flight/enum/flight.enum';
 
 
 @Injectable()
@@ -10,7 +11,7 @@ export class FareService {
     private fares = new Map<string, Omit<Fare,'flightId'>>()
     constructor(
         @Inject(forwardRef(() => FlightService))
-        private flightService: FlightService
+        private readonly flightService: FlightService
     ) { }
 
 
@@ -37,7 +38,7 @@ export class FareService {
 
         return {
             type: 'success',
-            message: `Fares updated successfully for flight ${flightId}`,
+            message: `Fares updated successfully for flight ${flight.flightNo}`,
             fares: updatedFares,
         };
     }
@@ -82,9 +83,38 @@ export class FareService {
         }
     }
 
-    calculateFare(){
-        
+    calculateFare(flightId: string, seatClass: SeatClassEnum, seatCount: number): number {
+        const fareDetails = this.getFareForFlight(flightId);
+
+        if (!fareDetails || fareDetails[seatClass] === undefined) {
+            throw new BadRequestException(`Fare not set for ${seatClass} on flight ${flightId}`);
+        }
+
+        const farePerSeat = fareDetails[seatClass];
+        return farePerSeat * seatCount;
     }
+
+
+    getFareBreakdown(flightId: string, seatClass: SeatClassEnum, seatCount: number) {
+        const fareDetails = this.getFareForFlight(flightId);
+        const flight = this.flightService.getFlightById(flightId)
+
+        if(!flight) throw new BadRequestException('Invalid flight Id');
+
+        if (!fareDetails || fareDetails[seatClass] === undefined) {
+            throw new BadRequestException(`Fare not set for ${seatClass} on flight ${flight.flightNo}`);
+        }
+
+        const farePerSeat = fareDetails[seatClass];
+        return {
+            flightNo: flight.flightNo,
+            seatClass,
+            seatCount,
+            farePerSeat,
+            totalFare: farePerSeat * seatCount
+        };
+    }
+
 
 
 

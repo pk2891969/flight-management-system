@@ -1,0 +1,7 @@
+export enum BookingStatusEnum {
+  CONFIRMED = 'CONFIRMED',
+  PENDING = 'PENDING',
+  CANCELLED = 'CANCELLED',
+  FAILED = 'FAILED',
+  CHECKED_IN = 'CHECKED_IN',
+}

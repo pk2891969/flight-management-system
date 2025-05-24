@@ -1,12 +1,13 @@
 import { BadRequestException, ConflictException, forwardRef, HttpException, Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
-import { AddFlightDto } from './dto/add-flight.dto';
+import { AddFlightDto, SeatClassesDto } from './dto/add-flight.dto';
 import { v4 as uuid } from 'uuid';
 import { UpdateFlightStatusDto } from './dto/update-flight.dto';
-import {  SeatClassEnum } from './enum/flight.enum';
+import { SeatClassEnum } from './enum/flight.enum';
 import { SeatAvailabilityDto } from './dto/seat-availability.dto';
 import { FareService } from 'src/fare/fare.service';
 import { FlightFilterDto } from './dto/flight-fliter.dto';
-import { Flight } from 'src/common/interfaces';
+import { Flight, SeatClass } from 'src/common/interfaces';
+import { MAX_SEATS } from 'src/common/constants/flight.constants';
 
 
 
@@ -20,7 +21,7 @@ export class FlightService {
     ) { }
 
     addFlight(addFlightDto: AddFlightDto) {
-        const { to } = addFlightDto
+        const { to, seatClasses } = addFlightDto
 
         const id = uuid()
         let flightNo: string
@@ -29,12 +30,31 @@ export class FlightService {
             flightNo = `IA-${to}-${Math.floor(1000 + Math.random() * 9000)}`;
         } while (this.isFlightNoExists(flightNo));
 
+        const transformedSeatClasses: {
+            economy: SeatClass;
+            business: SeatClass;
+            first: SeatClass;
+        } = {} as any;
+        for (const seatClass of Object.keys(seatClasses)) {
+            const totalSeats = seatClasses[seatClass];
+            if (totalSeats > MAX_SEATS[seatClass]) {
+                throw new BadRequestException(`${seatClass} class cannot exceed ${MAX_SEATS[seatClass]} seats`);
+            }
+            const availableSeats = this.generateSeatNumbers(totalSeats, 4);
+
+            transformedSeatClasses[seatClass] = {
+                totalSeats,
+                bookedSeats: [],
+                availableSeats,
+            };
+        }
+
         const newFlight = {
             id,
             flightNo,
-            ...addFlightDto
+            ...addFlightDto,
+            seatClasses: transformedSeatClasses,
         };
-
         this.flights.set(id, newFlight);
 
         return {
@@ -52,11 +72,11 @@ export class FlightService {
         return false;
     }
 
-    getAllFlights(filterDto:FlightFilterDto) {
+    getAllFlights(filterDto: FlightFilterDto) {
         try {
-            const {from,to,status} = filterDto
+            const { from, to, status } = filterDto
             const allFlights = Array.from(this.flights.values());
-            if(allFlights.length<1){
+            if (allFlights.length < 1) {
                 return []
             }
             let flightsWithFares = this.mapFlightAndFare(allFlights)
@@ -165,7 +185,7 @@ export class FlightService {
         id: string,
         seatAvailabilityDto: SeatAvailabilityDto
     ) {
-        let { seatClass, newCount } = seatAvailabilityDto
+        let { seatClass, totalSeats } = seatAvailabilityDto
         const flight = this.flights.get(id);
 
         if (!flight) {
@@ -176,28 +196,51 @@ export class FlightService {
             throw new BadRequestException(`Invalid seat class: ${seatClass}`);
         }
 
-        if (newCount < 0) {
+        if (totalSeats < 0) {
             throw new BadRequestException(`Seat count cannot be negative`);
+        }
+        if (totalSeats > MAX_SEATS[seatClass]) {
+            throw new BadRequestException(`${seatClass} class cannot exceed ${MAX_SEATS[seatClass]} seats`);
         }
 
         const currentSeatClass = flight.seatClasses[seatClass];
         const bookedSeats = currentSeatClass.bookedSeats;
-
-        if (newCount < bookedSeats) {
+        const isBookingStarted = bookedSeats && bookedSeats.length > 0;
+        if (isBookingStarted && totalSeats !== currentSeatClass.totalSeats) {
             throw new BadRequestException(
-                `Cannot reduce seats below the number of already booked seats (${bookedSeats})`
+                `Cannot update total seats for ${seatClass} after bookings have started.`
             );
         }
 
+        // if (newCount < bookedSeats.length) {
+        //     throw new BadRequestException(
+        //         `Cannot reduce seats below the number of already booked seats (${bookedSeats})` 
+        //     );
+        // } // I've commented this because, if we allow to update seat availability after 
+        // the bookings have started we should regenerate the seats based on the number of total seats
+
+        let updatedSeatClass;
+
+        if (!isBookingStarted && totalSeats !== currentSeatClass.totalSeats) {
+            const availableSeats = this.generateSeatNumbers(totalSeats, 4);
+
+            updatedSeatClass = {
+                ...currentSeatClass,
+                totalSeats,
+                availableSeats,
+            };
+        } else {
+            updatedSeatClass = {
+                ...currentSeatClass,
+                totalSeats,
+            };
+        }
 
         const updatedFlight = {
             ...flight,
             seatClasses: {
                 ...flight.seatClasses,
-                [seatClass]: {
-                    ...currentSeatClass,
-                    totalSeats: newCount
-                }
+                [seatClass]: updatedSeatClass,
             },
         };
 
@@ -205,7 +248,7 @@ export class FlightService {
 
         return {
             type: 'success',
-            message: `Seat availability for ${seatClass} updated to ${newCount}`,
+            message: `Seat availability for ${seatClass} updated to ${totalSeats}`,
         };
     }
 
@@ -213,29 +256,44 @@ export class FlightService {
         return this.flights.get(id);
     }
 
-    private mapFlightAndFare(flights:any[]){
+    private mapFlightAndFare(flights: any[]) {
         let mapped = flights.map(flight => {
-                const fares = this.fareService.getFareForFlight(flight.id);
+            const fares = this.fareService.getFareForFlight(flight.id);
 
-                const seatClassesWithFare = Object.entries(flight.seatClasses).reduce((acc, [className, seatInfo]) => {
-                    console.log(seatInfo)
-                    acc[className] = {
-                        ...(seatInfo || { totalSeats: 0, bookedSeats: 0 }),
-                        fare: fares?.[className] ?? null,
-                    };
-                    return acc;
-                }, {});
-
-                return {
-                    ...flight,
-                    seatClasses: seatClassesWithFare
+            const seatClassesWithFare = Object.entries(flight.seatClasses).reduce((acc, [className, seatInfo]) => {
+                console.log(seatInfo)
+                acc[className] = {
+                    ...(seatInfo || { totalSeats: 0, bookedSeats: 0 }),
+                    fare: fares?.[className] ?? null,
                 };
-            });
+                return acc;
+            }, {});
 
-            return mapped
+            return {
+                ...flight,
+                seatClasses: seatClassesWithFare
+            };
+        });
+
+        return mapped
 
 
     }
+
+    generateSeatNumbers(count: number, seatsPerRow: number): string[] {
+        const seatLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const seats: string[] = [];
+
+        for (let i = 0; i < count; i++) {
+            const row = Math.floor(i / seatsPerRow) + 1;
+            const seatLetter = seatLetters[i % seatsPerRow];
+            seats.push(`${row}${seatLetter}`);
+        }
+
+        return seats;
+    }
+
+
 
 
 

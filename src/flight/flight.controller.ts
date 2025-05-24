@@ -8,7 +8,7 @@ import { FlightFilterDto } from './dto/flight-fliter.dto';
 @Controller('flight')
 export class FlightController {
     constructor(
-        private flightService: FlightService
+        private readonly flightService: FlightService
     ){}
 
     @Post('add-flight')
