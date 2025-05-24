@@ -1,4 +1,8 @@
+import { FlightClassEnum } from "src/flight/enum/flight.enum";
+
 export interface SeatClass {
-  total: number;
-  booked: number;
+    id: number;
+    type: FlightClassEnum
+    total: number;
+    booked: number;
 }
