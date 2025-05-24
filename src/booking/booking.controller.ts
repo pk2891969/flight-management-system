@@ -8,8 +8,8 @@ export class BookingController {
     ) { }
 
     @Post()
-    createBooking(@Body() createBookingDto: CreateBookingDto) {
-        return this.bookingService.createBooking(createBookingDto)
+    async createBooking(@Body() createBookingDto: CreateBookingDto) {
+       return await this.bookingService.createBooking(createBookingDto)
     }
 
     @Get('user/:userId')
@@ -25,6 +25,11 @@ export class BookingController {
     @Delete(':id')
     cancel(@Param('id') id: string) {
         return this.bookingService.cancelBooking(id);
+    }
+
+    @Post('simulate')
+    concurrentBooking(@Body() bookingDtos){
+        return this.bookingService.simulateConcurrentBookings(bookingDtos)
     }
 
 
