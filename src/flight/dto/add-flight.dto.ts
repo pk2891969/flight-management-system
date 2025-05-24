@@ -38,7 +38,7 @@ export class AddFlightDto {
     date: string;
 
     @IsString()
-    time: string;
+    departureTime: string;
 
     @IsEnum(FlightStatusEnum)
     status: FlightStatusEnum

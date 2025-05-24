@@ -4,9 +4,6 @@ import { SeatClassEnum } from "../enum/flight.enum";
 export class SeatAvailabilityDto{
 
     @IsNotEmpty()
-    id:string
-
-    @IsNotEmpty()
     @IsEnum(SeatClassEnum)
     seatClass: SeatClassEnum
 

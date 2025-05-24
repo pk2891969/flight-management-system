@@ -6,7 +6,12 @@ export interface Flight {
   flightNo: string;
   from: string;
   to: string;
-  departureTime: Date;
+  departureTime: string;
   status: FlightStatusEnum
-  seats: SeatClass[]
+  seatClasses: {
+    economy:SeatClass;
+    business:SeatClass;
+    first: SeatClass;
+  }
 }
+

@@ -1,15 +1,18 @@
 import { BadRequestException, ConflictException, forwardRef, HttpException, Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { AddFlightDto } from './dto/add-flight.dto';
 import { v4 as uuid } from 'uuid';
-import { UpdateFlightDto } from './dto/update-flight.dto';
+import { UpdateFlightStatusDto } from './dto/update-flight.dto';
 import {  SeatClassEnum } from './enum/flight.enum';
 import { SeatAvailabilityDto } from './dto/seat-availability.dto';
 import { FareService } from 'src/fare/fare.service';
+import { FlightFilterDto } from './dto/flight-fliter.dto';
+import { Flight } from 'src/common/interfaces';
+
 
 
 @Injectable()
 export class FlightService {
-    private flights = new Map<string, any>()
+    private flights = new Map<string, Flight>()
 
     constructor(
         @Inject(forwardRef(() => FareService))
@@ -49,27 +52,26 @@ export class FlightService {
         return false;
     }
 
-    getAllFlights() {
+    getAllFlights(filterDto:FlightFilterDto) {
         try {
+            const {from,to,status} = filterDto
             const allFlights = Array.from(this.flights.values());
+            if(allFlights.length<1){
+                return []
+            }
+            let flightsWithFares = this.mapFlightAndFare(allFlights)
 
-            const flightsWithFares = allFlights.map(flight => {
-                const fares = this.fareService.getFareForFlight(flight.id);
+            if (from) {
+                flightsWithFares = flightsWithFares.filter(flight => flight.from === from);
+            }
 
-                const seatClassesWithFare = Object.entries(flight.seatClasses).reduce((acc, [className, seatInfo]) => {
-                    console.log(seatInfo)
-                    acc[className] = {
-                        ...(seatInfo || { totalSeats: 0, bookedSeats: 0 }),
-                        fare: fares?.[className] ?? null,
-                    };
-                    return acc;
-                }, {});
+            if (to) {
+                flightsWithFares = flightsWithFares.filter(flight => flight.to === to);
+            }
 
-                return {
-                    ...flight,
-                    seatClasses: seatClassesWithFare
-                };
-            });
+            if (status) {
+                flightsWithFares = flightsWithFares.filter(flight => flight.status === status);
+            }
 
             return flightsWithFares;
 
@@ -128,7 +130,7 @@ export class FlightService {
 
     // } // commented this since we have update flight status and update seat availability
 
-    updateFlightStatus(id: string, updateFlightDto: UpdateFlightDto) {
+    updateFlightStatus(id: string, updateFlightDto: UpdateFlightStatusDto) {
         let { status } = updateFlightDto
         const flight = this.flights.get(id);
         console.log(status)
@@ -209,6 +211,30 @@ export class FlightService {
 
     getFlightById(id: string) {
         return this.flights.get(id);
+    }
+
+    private mapFlightAndFare(flights:any[]){
+        let mapped = flights.map(flight => {
+                const fares = this.fareService.getFareForFlight(flight.id);
+
+                const seatClassesWithFare = Object.entries(flight.seatClasses).reduce((acc, [className, seatInfo]) => {
+                    console.log(seatInfo)
+                    acc[className] = {
+                        ...(seatInfo || { totalSeats: 0, bookedSeats: 0 }),
+                        fare: fares?.[className] ?? null,
+                    };
+                    return acc;
+                }, {});
+
+                return {
+                    ...flight,
+                    seatClasses: seatClassesWithFare
+                };
+            });
+
+            return mapped
+
+
     }
 
 

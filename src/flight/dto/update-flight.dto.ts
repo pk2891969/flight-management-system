@@ -4,7 +4,7 @@ import { Type } from 'class-transformer';
 import { SeatClassesDto } from './add-flight.dto';
 
 
-export class UpdateFlightDto {
+export class UpdateFlightStatusDto {
 
     @IsOptional()
     @IsString()
@@ -26,9 +26,8 @@ export class UpdateFlightDto {
     @IsString()
     time?: string;
 
-    @IsOptional()
     @IsEnum(FlightStatusEnum)
-    status?: FlightStatusEnum;
+    status: FlightStatusEnum;
 
     @IsOptional()
     @ValidateNested()

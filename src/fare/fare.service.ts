@@ -2,15 +2,12 @@ import { BadRequestException, forwardRef, Inject, Injectable } from '@nestjs/com
 import { SetFareDto } from './dto/set-fare.dto';
 import { FlightService } from 'src/flight/flight.service';
 import { UpdateFareDto } from './dto/update-fare.dto';
+import { Fare } from 'src/common/interfaces';
 
-type FareData = {
-    economy: number;
-    business: number;
-    first: number;
-};
+
 @Injectable()
 export class FareService {
-    private fares = new Map<string, FareData>()
+    private fares = new Map<string, Omit<Fare,'flightId'>>()
     constructor(
         @Inject(forwardRef(() => FlightService))
         private flightService: FlightService
@@ -18,7 +15,7 @@ export class FareService {
 
 
 
-    setFareForFlight(flightId: string, fareDto: SetFareDto) {
+    setFare(flightId: string, fareDto: SetFareDto) {
 
 
         const { economy, business, first } = fareDto;
@@ -61,7 +58,7 @@ export class FareService {
 
         const fares = this.fares.get(flightId) || { economy: 0, business: 0, first: 0 };
 
-        const tempFaresObj: FareData = { ...fares, [seatClass]: fare };
+        const tempFaresObj:Omit<Fare,'flightId'>= { ...fares, [seatClass]: fare };
 
         this.validateFareHierarchy(tempFaresObj);
 

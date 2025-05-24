@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { FlightService } from './flight.service';
 import { AddFlightDto } from './dto/add-flight.dto';
-import { UpdateFlightDto } from './dto/update-flight.dto';
+import { UpdateFlightStatusDto } from './dto/update-flight.dto';
 import { SeatAvailabilityDto } from './dto/seat-availability.dto';
+import { FlightFilterDto } from './dto/flight-fliter.dto';
 
 @Controller('flight')
 export class FlightController {
@@ -18,8 +19,10 @@ export class FlightController {
 
 
     @Get('all-flights')
-    getAllFlights(){
-        return this.flightService.getAllFlights()
+    getAllFlights(
+        @Query() filterDto:FlightFilterDto
+    ){
+        return this.flightService.getAllFlights(filterDto)
     }
 
     // @Patch('/:id')
@@ -28,7 +31,7 @@ export class FlightController {
     // }
 
     @Patch(':id/status')
-    updateFlightStatus(@Param('id') id:string, @Body() updateFlightDto:UpdateFlightDto){
+    updateFlightStatus(@Param('id') id:string, @Body() updateFlightDto:UpdateFlightStatusDto){
         return this.flightService.updateFlightStatus(id,updateFlightDto)
     }
 

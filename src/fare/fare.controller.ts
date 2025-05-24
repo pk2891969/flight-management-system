@@ -11,12 +11,12 @@ export class FareController {
     ){}
 
     @Post(':flightId')
-    setFareForFlight(@Param('flightId') flightId, @Body() setFareDto: SetFareDto){
-        return this.fareService.setFareForFlight(flightId,setFareDto)
+    setFare(@Param('flightId') flightId, @Body() setFareDto: SetFareDto){
+        return this.fareService.setFare(flightId,setFareDto)
     }
 
     @Patch(':flightId/fares')
-    updateFareForFlight(@Param('flightId') flightId, @Body() updateFareDto: UpdateFareDto){
+    updateFare(@Param('flightId') flightId, @Body() updateFareDto: UpdateFareDto){
         return this.fareService.updateFare(flightId,updateFareDto)
     }
 
