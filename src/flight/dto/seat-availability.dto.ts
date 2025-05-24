@@ -1,5 +1,5 @@
 import { IsEnum, IsInt, IsNotEmpty } from "class-validator";
-import { FlightClassEnum } from "../enum/flight.enum";
+import { SeatClassEnum } from "../enum/flight.enum";
 
 export class SeatAvailabilityDto{
 
@@ -7,8 +7,8 @@ export class SeatAvailabilityDto{
     id:string
 
     @IsNotEmpty()
-    @IsEnum(FlightClassEnum)
-    flightClass: FlightClassEnum
+    @IsEnum(SeatClassEnum)
+    seatClass: SeatClassEnum
 
     @IsNotEmpty()
     @IsInt()

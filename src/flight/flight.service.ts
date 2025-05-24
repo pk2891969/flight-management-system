@@ -1,17 +1,23 @@
-import { BadRequestException, ConflictException, HttpException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, forwardRef, HttpException, Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { AddFlightDto } from './dto/add-flight.dto';
 import { v4 as uuid } from 'uuid';
 import { UpdateFlightDto } from './dto/update-flight.dto';
-import { FlightClassEnum, FlightStatusEnum } from './enum/flight.enum';
+import {  SeatClassEnum } from './enum/flight.enum';
 import { SeatAvailabilityDto } from './dto/seat-availability.dto';
+import { FareService } from 'src/fare/fare.service';
 
 
 @Injectable()
 export class FlightService {
     private flights = new Map<string, any>()
 
+    constructor(
+        @Inject(forwardRef(() => FareService))
+        private readonly fareService: FareService
+    ) { }
+
     addFlight(addFlightDto: AddFlightDto) {
-        const { to, seatClasses } = addFlightDto
+        const { to } = addFlightDto
 
         const id = uuid()
         let flightNo: string
@@ -44,7 +50,34 @@ export class FlightService {
     }
 
     getAllFlights() {
-        return Array.from(this.flights.values());
+        try {
+            const allFlights = Array.from(this.flights.values());
+
+            const flightsWithFares = allFlights.map(flight => {
+                const fares = this.fareService.getFareForFlight(flight.id);
+
+                const seatClassesWithFare = Object.entries(flight.seatClasses).reduce((acc, [className, seatInfo]) => {
+                    console.log(seatInfo)
+                    acc[className] = {
+                        ...(seatInfo || { totalSeats: 0, bookedSeats: 0 }),
+                        fare: fares?.[className] ?? null,
+                    };
+                    return acc;
+                }, {});
+
+                return {
+                    ...flight,
+                    seatClasses: seatClassesWithFare
+                };
+            });
+
+            return flightsWithFares;
+
+        } catch (e) {
+            throw new InternalServerErrorException(e)
+
+        }
+
     }
 
     // updateFlight(id: string, updateFlightDto: UpdateFlightDto) {
@@ -128,24 +161,24 @@ export class FlightService {
 
     updateSeatAvailability(
         id: string,
-        seatAvailabilityDto:SeatAvailabilityDto
+        seatAvailabilityDto: SeatAvailabilityDto
     ) {
-        let {flightClass,newCount} = seatAvailabilityDto
+        let { seatClass, newCount } = seatAvailabilityDto
         const flight = this.flights.get(id);
 
         if (!flight) {
             throw new NotFoundException(`Flight with ID ${id} not found`);
         }
 
-        if (!Object.values(FlightClassEnum).includes(flightClass)) {
-            throw new BadRequestException(`Invalid seat class: ${flightClass}`);
+        if (!Object.values(SeatClassEnum).includes(seatClass)) {
+            throw new BadRequestException(`Invalid seat class: ${seatClass}`);
         }
 
         if (newCount < 0) {
             throw new BadRequestException(`Seat count cannot be negative`);
         }
 
-        const currentSeatClass = flight.seatClasses[flightClass];
+        const currentSeatClass = flight.seatClasses[seatClass];
         const bookedSeats = currentSeatClass.bookedSeats;
 
         if (newCount < bookedSeats) {
@@ -159,7 +192,7 @@ export class FlightService {
             ...flight,
             seatClasses: {
                 ...flight.seatClasses,
-                [flightClass]: {
+                [seatClass]: {
                     ...currentSeatClass,
                     totalSeats: newCount
                 }
@@ -170,9 +203,14 @@ export class FlightService {
 
         return {
             type: 'success',
-            message: `Seat availability for ${flightClass} updated to ${newCount}`,
+            message: `Seat availability for ${seatClass} updated to ${newCount}`,
         };
     }
+
+    getFlightById(id: string) {
+        return this.flights.get(id);
+    }
+
 
 
 

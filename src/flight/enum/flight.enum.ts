@@ -4,7 +4,7 @@ export enum FlightStatusEnum {
   CANCELLED = 'cancelled',
 }
 
-export enum FlightClassEnum{
+export enum SeatClassEnum{
   ECONOMY = 'economy',
   BUSINESS = 'business',
   FIRST = 'first'
