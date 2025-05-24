@@ -2,7 +2,6 @@ import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { FlightService } from './flight.service';
 import { AddFlightDto } from './dto/add-flight.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
-import { FlightStatusEnum } from './enum/flight.enum';
 import { SeatAvailabilityDto } from './dto/seat-availability.dto';
 
 @Controller('flight')
