@@ -13,4 +13,9 @@ export class FlightFilterDto {
   @IsOptional()
   @IsEnum(FlightStatusEnum)
   status?: FlightStatusEnum;
+
+  @IsOptional()
+  @IsString()
+  date?:string
+
 }

@@ -7,11 +7,13 @@ import { UserService } from 'src/user/user.service';
 import { FareService } from 'src/fare/fare.service';
 import { BookingStatusEnum } from './enum/booking.enum';
 import { Mutex } from 'async-mutex';
+import { resolve } from 'path';
 
 @Injectable()
 export class BookingService {
     private bookings = new Map<string, Booking>();
-     private flightMutex = new Mutex();
+    private flightMutexes = new Map<string, Mutex>();
+    private seatClassMutexes = new Map<string,Mutex>() // we can use seat mutexes if we want to lock the seat 
 
     constructor(
         private readonly flightService: FlightService,
@@ -19,10 +21,19 @@ export class BookingService {
         private readonly fareService: FareService
     ) { }
 
-    async createBooking(createBookingDto: CreateBookingDto) {
-        const { flightId, seatClass, seatNumbers, userId } = createBookingDto;
+    private getMutexForFlight(flightId: string): Mutex {
+        if (!this.flightMutexes.has(flightId)) {
+            this.flightMutexes.set(flightId, new Mutex());
+        }
+        return this.flightMutexes.get(flightId)!;
+    }
 
-        return this.flightMutex.runExclusive(async () => {
+    async createBooking(createBookingDto: CreateBookingDto):Promise<any> {
+        const { flightId, seatClass, seatNumbers, userId } = createBookingDto;
+        const mutex = this.getMutexForFlight(createBookingDto.flightId);
+
+
+        return mutex.runExclusive(async () => {
             try {
                 const flight = this.flightService.getFlightById(flightId);
                 const user = this.userService.getUserById(userId);
@@ -32,6 +43,7 @@ export class BookingService {
                 const seatInfo = flight.seatClasses[seatClass];
                 if (!seatInfo) throw new BadRequestException('Invalid seat class');
 
+                await new Promise(res => setTimeout(res, Math.random() * 50));
                 const unavailableSeats = seatNumbers.filter(
                     seat => !seatInfo.availableSeats.includes(seat)
                 );
@@ -42,10 +54,13 @@ export class BookingService {
                 }
 
                 const totalFare = this.fareService.calculateFare(flightId, seatClass, seatNumbers.length);
+                await new Promise(res => setTimeout(res, Math.random() * 100));
 
                 seatInfo.availableSeats = seatInfo.availableSeats.filter(
                     seat => !seatNumbers.includes(seat)
                 );
+
+                await new Promise(res => setTimeout(res, Math.random() * 200));
                 seatInfo.bookedSeats.push(...seatNumbers);
 
                 const bookingId = uuid();

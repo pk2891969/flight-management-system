@@ -74,7 +74,7 @@ export class FlightService {
 
     getAllFlights(filterDto: FlightFilterDto) {
         try {
-            const { from, to, status } = filterDto
+            const { from, to, status,date } = filterDto
             const allFlights = Array.from(this.flights.values());
             if (allFlights.length < 1) {
                 return []
@@ -91,6 +91,10 @@ export class FlightService {
 
             if (status) {
                 flightsWithFares = flightsWithFares.filter(flight => flight.status === status);
+            }
+
+            if(date){
+                flightsWithFares = flightsWithFares.filter(flight=> flight.date === date)
             }
 
             return flightsWithFares;
