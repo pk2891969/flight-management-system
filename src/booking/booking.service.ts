@@ -43,7 +43,7 @@ export class BookingService {
                 const seatInfo = flight.seatClasses[seatClass];
                 if (!seatInfo) throw new BadRequestException('Invalid seat class');
 
-                await new Promise(res => setTimeout(res, Math.random() * 50));
+                await new Promise(res => setTimeout(res, Math.random() * 50)); // to simulate concurrent users trying to book the same seat
                 const unavailableSeats = seatNumbers.filter(
                     seat => !seatInfo.availableSeats.includes(seat)
                 );
@@ -120,25 +120,36 @@ export class BookingService {
         return bookingsWithDetails
     }
 
-    cancelBooking(id: string) {
-        const booking = this.bookings.get(id);
-        if (!booking) throw new NotFoundException('Booking not found');
+    async cancelBooking(id: string) {
+        const mutex = this.getMutexForFlight(id);
+        return mutex.runExclusive(async () => {
+            try {
 
-        const flight = this.flightService.getFlightById(booking.flightId);
-        if (flight) {
-            const seatInfo = flight.seatClasses[booking.seatClass];
-            seatInfo.bookedSeats = seatInfo.bookedSeats.filter(
-                seat => !booking.seatNumbers.includes(seat),
-            );
-            seatInfo.availableSeats.push(...booking.seatNumbers);
-        }
-        const updatedBooking = {
-            ...booking,
-            status: BookingStatusEnum.CANCELLED
-        }
+                const booking = this.bookings.get(id);
+                if (!booking) throw new NotFoundException('Booking not found');
 
-        this.bookings.set(id, updatedBooking);
-        return { message: 'Booking cancelled successfully' };
+                const flight = this.flightService.getFlightById(booking.flightId);
+                await new Promise(res => setTimeout(res, Math.random() * 200));
+                if (flight) {
+                    const seatInfo = flight.seatClasses[booking.seatClass];
+                    seatInfo.bookedSeats = seatInfo.bookedSeats.filter(
+                        seat => !booking.seatNumbers.includes(seat),
+                    );
+                    seatInfo.availableSeats.push(...booking.seatNumbers);
+                }
+                await new Promise(res => setTimeout(res, Math.random() * 200));
+                const updatedBooking = {
+                    ...booking,
+                    status: BookingStatusEnum.CANCELLED
+                }
+                await new Promise(res => setTimeout(res, Math.random() * 200));
+
+                this.bookings.set(id, updatedBooking);
+                return { message: 'Booking cancelled successfully' };
+            } catch (e) {
+
+            }
+        });
     }
 
     async simulateConcurrentBookings( bookingDtos) {
